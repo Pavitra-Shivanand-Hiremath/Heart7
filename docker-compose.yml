@@ -1,0 +1,18 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      # VITE_WS_URL is left unset here on purpose — the frontend now talks
+      # to whatever origin loaded the page, and nginx proxies /ws/* to the
+      # backend container internally. See frontend/nginx.conf.
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
