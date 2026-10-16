@@ -47,6 +47,7 @@ export default function App() {
   const [winnerId, setWinnerId] = useState(null);
 
   const [hand, setHand] = useState([]);
+  const [selectedUid, setSelectedUid] = useState(null);
   const [table, setTable] = useState(EMPTY_TABLE);
   const [currentPlayerId, setCurrentPlayerId] = useState(null);
   const [lastAction, setLastAction] = useState(null);
@@ -67,6 +68,14 @@ export default function App() {
     attach(ws);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Drop any pending "tap again to play" selection whenever the hand
+  // changes (a card was played, or we reconnected with a fresh hand) or
+  // the turn moves on — a stale selection sitting around would be
+  // confusing to come back to.
+  useEffect(() => {
+    setSelectedUid(null);
+  }, [hand, currentPlayerId]);
 
   function resetRoomState() {
     setPlayerId(null);
@@ -161,6 +170,19 @@ export default function App() {
   const playCard = (card) => send({ type: "play_card", rank: card.rank, suit: card.suit });
   const passTurn = () => send({ type: "pass_turn" });
 
+  // Tap once to select a card (so it's clear which one you're about to
+  // play), tap the same card again to actually play it. Tapping a
+  // different card just moves the selection instead of playing anything —
+  // this is what avoids accidental plays from a stray tap.
+  function handleCardTap(card) {
+    if (selectedUid === card.uid) {
+      playCard(card);
+      setSelectedUid(null);
+    } else {
+      setSelectedUid(card.uid);
+    }
+  }
+
   function leaveRoom() {
     send({ type: "leave_room" });
     clearSession();
@@ -197,31 +219,40 @@ export default function App() {
   const canPass = isMyTurn && playableIds.size === 0;
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
   const winner = players.find((p) => p.id === winnerId);
+  const selectedCard = hand.find((c) => c.uid === selectedUid);
 
   return (
     <div className="screen screen--game">
       <header className="gamebar">
         <div className="gamebar__room">Room {code}</div>
-        <ul className="gamebar__players">
-          {players.map((p) => (
-            <li
-              key={p.id}
-              className={[
-                "gamebar__player",
-                p.id === currentPlayerId ? "gamebar__player--turn" : "",
-                p.id === playerId ? "gamebar__player--me" : "",
-                p.left ? "gamebar__player--left" : "",
-              ].join(" ").trim()}
-            >
-              {p.isBot ? "🤖 " : ""}
-              {p.name} {p.id === playerId ? "(you)" : ""} · {p.left ? "left" : p.handCount}
-            </li>
-          ))}
-        </ul>
         <button type="button" className="btn btn--leave" onClick={leaveRoom}>
           Leave
         </button>
       </header>
+
+      <ul className="players-row">
+        {players.map((p) => (
+          <li
+            key={p.id}
+            className={[
+              "players-row__player",
+              p.id === currentPlayerId ? "players-row__player--turn" : "",
+              p.id === playerId ? "players-row__player--me" : "",
+              p.left ? "players-row__player--left" : "",
+            ].join(" ").trim()}
+          >
+            {p.isBot ? "🤖 " : ""}
+            {p.name} {p.id === playerId ? "(you)" : ""}
+            {p.left ? (
+              <span className="gamebar__count-badge gamebar__count-badge--left">left</span>
+            ) : (
+              <span className="gamebar__count-badge" title="cards in hand">
+                🂠 {p.handCount}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
 
       {finished ? (
         <div className="banner banner--win">
@@ -249,24 +280,41 @@ export default function App() {
 
       {error && <p className="home__error home__error--floating">{error}</p>}
 
+      {selectedCard && (
+        <div className="handbar__hint">Tap {rankSuit(selectedCard)} again to play it</div>
+      )}
+
       <footer className="handbar">
         <div className="handbar__cards">
-          {hand.map((c) => {
-            // Playability is looked up by rank+suit (either copy of a
-            // duplicate card is equally playable), but the React key must
-            // be the card's own unique id — two copies of the same card
-            // share a rank+suit, and keying on that breaks rendering once
-            // a hand legitimately holds both (2-deck games).
-            const playable = playableIds.has(`${c.rank}-${c.suit}`);
+          {HAND_SUIT_ORDER.map((suit) => {
+            const cards = hand.filter((c) => c.suit === suit);
+            if (cards.length === 0) return null;
             return (
-              <PlayingCard
-                key={c.uid}
-                rank={c.rank}
-                suit={c.suit}
-                playable={playable}
-                faded={!playable}
-                onClick={isMyTurn && playable ? () => playCard(c) : undefined}
-              />
+              <div key={suit} className={`handbar__suit-row handbar__suit-row--${suit}`}>
+                <span className="handbar__suit-label">{SUIT_SYMBOL[suit]}</span>
+                <div className="handbar__suit-cards">
+                  {cards.map((c) => {
+                    // Playability is looked up by rank+suit (either copy of
+                    // a duplicate card is equally playable), but the React
+                    // key must be the card's own unique id — two copies of
+                    // the same card share a rank+suit, and keying on that
+                    // breaks rendering once a hand legitimately holds both
+                    // (2-deck games).
+                    const playable = playableIds.has(`${c.rank}-${c.suit}`);
+                    return (
+                      <PlayingCard
+                        key={c.uid}
+                        rank={c.rank}
+                        suit={c.suit}
+                        playable={playable}
+                        faded={!playable}
+                        selected={c.uid === selectedUid}
+                        onClick={isMyTurn && playable ? () => handleCardTap(c) : undefined}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -295,6 +343,7 @@ function isPlayable(card, table) {
 
 const RANK_LABEL = { 1: "A", 11: "J", 12: "Q", 13: "K" };
 const SUIT_SYMBOL = { H: "♥", D: "♦", C: "♣", S: "♠" };
+const HAND_SUIT_ORDER = ["H", "D", "C", "S"];
 function rankSuit(card) {
   return `${RANK_LABEL[card.rank] || card.rank}${SUIT_SYMBOL[card.suit]}`;
 }
