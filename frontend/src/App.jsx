@@ -255,16 +255,16 @@ export default function App() {
       </ul>
 
       {finished ? (
-        <div className="banner banner--win">
-          {winner ? `${winner.name} wins! 🎉` : "Game over."}
-        </div>
+        <div className="banner" />
       ) : (
         <div className="banner">
-          {isMyTurn
-            ? "Your turn"
-            : currentPlayer
-            ? `Waiting on ${currentPlayer.name}…`
-            : ""}
+          {isMyTurn ? (
+            <span className="banner__your-turn">🟢 Your turn</span>
+          ) : currentPlayer ? (
+            `Waiting on ${currentPlayer.name}…`
+          ) : (
+            ""
+          )}
           {lastAction?.card && (
             <span className="banner__log">
               {lastAction.name} played {rankSuit(lastAction.card)}
@@ -273,6 +273,26 @@ export default function App() {
           {lastAction && !lastAction.card && (
             <span className="banner__log">{lastAction.name} passed</span>
           )}
+        </div>
+      )}
+
+      {finished && (
+        <div className="game-over">
+          <div className="game-over__card">
+            <div className="game-over__trophy">🎉</div>
+            <div className="game-over__text">
+              {winner ? (
+                <>
+                  <span className="game-over__name">{winner.name}</span> wins!
+                </>
+              ) : (
+                "Game over"
+              )}
+            </div>
+            <button type="button" className="btn btn--primary" onClick={leaveRoom}>
+              Leave room
+            </button>
+          </div>
         </div>
       )}
 
@@ -318,8 +338,13 @@ export default function App() {
             );
           })}
         </div>
-        <button type="button" className="btn btn--pass" disabled={!canPass} onClick={passTurn}>
-          Pass
+        <button
+          type="button"
+          className={`btn btn--pass${canPass ? " btn--pass-urgent" : ""}`}
+          disabled={!canPass}
+          onClick={passTurn}
+        >
+          {canPass ? "No moves — Pass" : "Pass"}
         </button>
       </footer>
     </div>
