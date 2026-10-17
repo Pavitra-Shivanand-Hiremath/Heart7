@@ -304,7 +304,10 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  /* Extra top padding (plus the device's safe-area inset, for notches/status
+     bars) so the Leave button isn't crowded right against the very edge of
+     the screen, which made it hard to tap reliably. */
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 10px;
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
 }
@@ -425,8 +428,9 @@ button {
   background: transparent;
   border: 1px solid rgba(166, 72, 58, 0.5);
   color: #e6a79c;
-  font-size: 0.8rem;
-  padding: 7px 14px;
+  font-size: 0.85rem;
+  padding: 10px 16px;
+  min-height: 40px;
   flex-shrink: 0;
 }
 
@@ -442,10 +446,11 @@ button {
 
 .banner {
   text-align: center;
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-size: 0.92rem;
   color: var(--cream);
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
@@ -456,11 +461,87 @@ button {
   color: var(--muted);
 }
 
-.banner--win {
+.banner__your-turn {
+  display: inline-block;
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--ink);
+  background: var(--gold-bright);
+  padding: 6px 18px;
+  border-radius: 999px;
+  text-shadow: none;
+  box-shadow: 0 0 0 4px rgba(224, 189, 106, 0.22), 0 4px 18px rgba(224, 189, 106, 0.45);
+  animation: your-turn-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes your-turn-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(224, 189, 106, 0.22), 0 4px 18px rgba(224, 189, 106, 0.45);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 8px rgba(224, 189, 106, 0.12), 0 6px 24px rgba(224, 189, 106, 0.6);
+  }
+}
+
+/* ---------- Game over overlay ---------- */
+
+.game-over {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.game-over__card {
+  pointer-events: auto;
+  width: min(50vw, 420px);
+  min-width: 280px;
+  background: linear-gradient(180deg, rgba(14, 59, 46, 0.97), rgba(8, 39, 32, 0.98));
+  border: 2px solid var(--gold);
+  border-radius: 20px;
+  padding: 40px 32px;
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(201, 162, 75, 0.2), 0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 80px rgba(201, 162, 75, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  animation: game-over-in 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+@keyframes game-over-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.game-over__trophy {
+  font-size: 3.2rem;
+  line-height: 1;
+}
+
+.game-over__text {
   font-family: var(--font-display);
-  font-size: 1.6rem;
+  font-size: 1.9rem;
+  color: var(--cream);
+  line-height: 1.3;
+}
+
+.game-over__name {
   color: var(--gold-bright);
-  padding: 18px;
 }
 
 .table {
@@ -761,6 +842,36 @@ button {
   background: rgba(201, 162, 75, 0.12);
 }
 
+/* Shown only when the player has no legal move at all — makes it obvious
+   that passing is the only option, rather than leaving them guessing
+   whether they missed a playable card. */
+.btn--pass-urgent {
+  background: var(--brick);
+  border: 2px solid var(--gold-bright);
+  color: var(--cream);
+  font-weight: 800;
+  font-size: 1rem;
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px rgba(166, 72, 58, 0.3), 0 6px 20px rgba(166, 72, 58, 0.5);
+  animation: pass-urgent-pulse 1.3s ease-in-out infinite;
+}
+
+.btn--pass-urgent:hover:not(:disabled) {
+  background: #b85445;
+}
+
+@keyframes pass-urgent-pulse {
+  0%,
+  100% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 4px rgba(166, 72, 58, 0.3), 0 6px 20px rgba(166, 72, 58, 0.5);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 9px rgba(166, 72, 58, 0.15), 0 8px 26px rgba(166, 72, 58, 0.65);
+  }
+}
+
 /* ---------- Phone-friendly layout ---------- */
 
 @media (max-width: 640px) {
@@ -775,6 +886,20 @@ button {
 
   .gamebar__room {
     font-size: 0.85rem;
+  }
+
+  .game-over__card {
+    width: min(86vw, 420px);
+    padding: 32px 24px;
+    gap: 14px;
+  }
+
+  .game-over__trophy {
+    font-size: 2.6rem;
+  }
+
+  .game-over__text {
+    font-size: 1.5rem;
   }
 
   .players-row {
